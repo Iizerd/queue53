@@ -406,7 +406,7 @@ impl QueueState {
             let netid = line_parts[2].to_lowercase();
             if !self.students.contains_key(&netid) {
                 self.students.insert(
-                    line_parts[2].to_lowercase(),
+                    netid,
                     Student {
                         first: line_parts[1].to_lowercase(),
                         last: line_parts[0].to_lowercase(),
