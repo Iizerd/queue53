@@ -47,7 +47,7 @@ struct Student {
     pub first: String,
     pub last: String,
     /// When popped, time spent in the queue is put here.
-    pub queue_times: Vec<Duration>,
+    pub queue_times: Vec<(Duration, String)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,7 +86,6 @@ impl QueueState {
             Err("Invalid password.".to_owned())
         }
     }
-
 
     pub fn save_backup(&self) {
         let Ok(mut file) = File::create("backup.txt") else {
@@ -193,7 +192,10 @@ impl QueueState {
         let time_in_queue = student.entry_time.elapsed();
 
         let student = self.students.get_mut(&student.net_id).unwrap();
-        student.queue_times.push(time_in_queue);
+        student.queue_times.push((
+            time_in_queue,
+            format!("{}", chrono::offset::Local::now().format("%d/%m/%Y %H:%M")),
+        ));
 
         println!(
             "Popped: \"{} {}\" after {:?} in queue.",
@@ -232,7 +234,7 @@ impl QueueState {
         self.authenticate()?;
         if clearscreen::clear().is_err() {
             return Err("Failed to clear screen.".to_owned());
-        } 
+        }
         Ok(())
     }
     /// Dumps the stats to a file.
@@ -401,14 +403,17 @@ impl QueueState {
                 return Err(format!("Err on line {}:{} ", i, line));
             }
 
-            self.students.insert(
-                line_parts[2].to_lowercase(),
-                Student {
-                    first: line_parts[1].to_lowercase(),
-                    last: line_parts[0].to_lowercase(),
-                    queue_times: Vec::default(),
-                },
-            );
+            let netid = line_parts[2].to_lowercase();
+            if !self.students.contains_key(&netid) {
+                self.students.insert(
+                    line_parts[2].to_lowercase(),
+                    Student {
+                        first: line_parts[1].to_lowercase(),
+                        last: line_parts[0].to_lowercase(),
+                        queue_times: Vec::default(),
+                    },
+                );
+            }
         }
 
         println!("Imported {} students.", self.students.len());
@@ -448,6 +453,13 @@ impl QueueState {
 }
 
 fn main() {
+    // let vec = vec![(Duration::default(), "One".to_owned()),(Duration::default(), "Two".to_owned()),
+    // (Duration::default(), "Three".to_owned()),(Duration::default(), "Four".to_owned()),];
+
+    // println!("{}", serde_json::to_string_pretty(&vec).unwrap());
+
+    // panic!();
+
     let mut queue = QueueState::default();
     queue.load_backup();
     let mut buffer = String::new();
