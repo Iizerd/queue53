@@ -72,7 +72,7 @@ struct QueueState {
     pub staff: HashMap<String, StaffMember>,
     /// The actual queue.
     pub queue: VecDeque<QueuedStudent>,
-    /// Is the queue locked.
+    /// Whether the queue is locked.
     pub locked: bool,
 }
 impl QueueState {
@@ -295,8 +295,10 @@ impl QueueState {
     ///
     /// `help`
     pub fn help(&mut self) -> CommandResult {
-        println!("\"add <netid>\" - adds the specified netid to the queue.");
-        println!("\"view\" - views the queue.");
+        println!("\"add51 <netid>\" - adds the specified netid to the queue for ics51.");
+        println!("\"view51\" - views the queue for ics51.");
+        println!("\"add53 <netid>\" - adds the specified netid to the queue for ics53.");
+        println!("\"view53\" - views the queue for ics53.");
         Ok(())
     }
     /// Exit the queue, saves the global state before doing so.
@@ -447,6 +449,60 @@ impl QueueState {
             "save" => self.save(&parts),
             "add_staff" => self.add_staff(&parts),
             "load_roster" => self.load_roster(&parts),
+            _ => Err("Unknown command.".to_owned()),
+        }
+    }
+}
+
+
+#[derive(Serialize, Deserialize)]
+struct Queue {
+    ics53: QueueState,
+    ics51: QueueState,
+}
+impl Queue {
+    pub fn process_command(&mut self, command: &str) -> CommandResult {
+        let parts = command
+            .split_ascii_whitespace()
+            .map(|s| s.to_owned())
+            .collect::<Vec<String>>();
+        if parts.is_empty() {
+            return Err("Command is empty.".to_owned());
+        }
+
+        match parts[0].to_lowercase().as_str() {
+            "checkin51" => self.ics53.checkin(&parts),
+            "checkin53" => self.ics53.checkin(&parts),
+            "add51" => self.ics51.add(&parts),
+            "add53" => self.ics53.add(&parts),
+            "pop51" => self.ics51.pop(),
+            "pop53" => self.ics53.pop(),
+            "view51" => self.ics51.view(),
+            "view53" => self.ics53.view(),
+            "clear" => self.ics53.clear(),
+            "stats51" => self.ics51.stats(&parts),
+            "stats53" => self.ics53.stats(&parts),
+            "reset51" => self.ics51.reset(),
+            "reset53" => self.ics53.reset(),
+            "lock51" => self.ics51.lock(),
+            "lock53" => self.ics53.lock(),
+            "unlock51" => self.ics51.unlock(),
+            "unlock53" => self.ics53.unlock(),
+            "help" => self.ics51.help(),
+            "quit" => {
+                self.ics51.authenticate()?;
+                self.ics51.save_backup();
+                self.ics53.save_backup();
+                exit(0);
+            }
+            "load51" => self.ics51.load(&parts),
+            "load53" => self.ics53.load(&parts),
+            "save51" => self.ics51.save(&parts),
+            "save53" => self.ics53.save(&parts),
+            "add_staff51" => self.ics51.add_staff(&parts),
+            "add_staff53" => self.ics53.add_staff(&parts),
+            "load_roster51" => self.ics51.load_roster(&parts),
+            "load_roster53" => self.ics53.load_roster(&parts),
             _ => Err("Unknown command.".to_owned()),
         }
     }
