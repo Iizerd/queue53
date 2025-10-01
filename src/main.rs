@@ -74,13 +74,28 @@ struct QueueState {
     pub queue: VecDeque<QueuedStudent>,
     /// Whether the queue is locked.
     pub locked: bool,
+    /// Password for staff actions.
+    pub password: String,
+
+    pub backup_file: String,
 }
 impl QueueState {
+    pub fn new(password: String, backup_file: String) -> Self {
+        Self {
+            students: HashMap::new(),
+            staff: HashMap::new(),
+            queue: VecDeque::new(),
+            locked: false,
+            password,
+            backup_file,
+        }
+    }
+
     fn authenticate(&self) -> CommandResult {
         print!("Enter password:");
         std::io::stdout().flush().unwrap();
         let password = read_password().unwrap();
-        if password == "53rocks" {
+        if password == self.password {
             Ok(())
         } else {
             Err("Invalid password.".to_owned())
@@ -88,7 +103,7 @@ impl QueueState {
     }
 
     pub fn save_backup(&self) {
-        let Ok(mut file) = File::create("backup.txt") else {
+        let Ok(mut file) = File::create(&self.backup_file) else {
             println!("Invalid file.");
             return;
         };
@@ -105,7 +120,7 @@ impl QueueState {
     }
 
     pub fn load_backup(&mut self) {
-        let Ok(contents) = std::fs::read_to_string("backup.txt") else {
+        let Ok(contents) = std::fs::read_to_string(&self.backup_file) else {
             println!("Backup file does not exist.");
             return;
         };
@@ -291,16 +306,6 @@ impl QueueState {
         println!("Queue is unlocked.");
         Ok(())
     }
-    /// Prints help.
-    ///
-    /// `help`
-    pub fn help(&mut self) -> CommandResult {
-        println!("\"add51 <netid>\" - adds the specified netid to the queue for ics51.");
-        println!("\"view51\" - views the queue for ics51.");
-        println!("\"add53 <netid>\" - adds the specified netid to the queue for ics53.");
-        println!("\"view53\" - views the queue for ics53.");
-        Ok(())
-    }
     /// Exit the queue, saves the global state before doing so.
     ///
     /// `quit`
@@ -424,36 +429,35 @@ impl QueueState {
         Ok(())
     }
 
-    pub fn process_command(&mut self, command: &str) -> CommandResult {
-        let parts = command
-            .split_ascii_whitespace()
-            .map(|s| s.to_owned())
-            .collect::<Vec<String>>();
-        if parts.is_empty() {
-            return Err("Command is empty.".to_owned());
-        }
+    // pub fn process_command(&mut self, command: &str) -> CommandResult {
+    //     let parts = command
+    //         .split_ascii_whitespace()
+    //         .map(|s| s.to_owned())
+    //         .collect::<Vec<String>>();
+    //     if parts.is_empty() {
+    //         return Err("Command is empty.".to_owned());
+    //     }
 
-        match parts[0].to_lowercase().as_str() {
-            "checkin" => self.checkin(&parts),
-            "add" => self.add(&parts),
-            "pop" => self.pop(),
-            "view" => self.view(),
-            "clear" => self.clear(),
-            "stats" => self.stats(&parts),
-            "reset" => self.reset(),
-            "lock" => self.lock(),
-            "unlock" => self.unlock(),
-            "help" => self.help(),
-            "quit" => self.quit(),
-            "load" => self.load(&parts),
-            "save" => self.save(&parts),
-            "add_staff" => self.add_staff(&parts),
-            "load_roster" => self.load_roster(&parts),
-            _ => Err("Unknown command.".to_owned()),
-        }
-    }
+    //     match parts[0].to_lowercase().as_str() {
+    //         "checkin" => self.checkin(&parts),
+    //         "add" => self.add(&parts),
+    //         "pop" => self.pop(),
+    //         "view" => self.view(),
+    //         "clear" => self.clear(),
+    //         "stats" => self.stats(&parts),
+    //         "reset" => self.reset(),
+    //         "lock" => self.lock(),
+    //         "unlock" => self.unlock(),
+    //         "help" => self.help(),
+    //         "quit" => self.quit(),
+    //         "load" => self.load(&parts),
+    //         "save" => self.save(&parts),
+    //         "add_staff" => self.add_staff(&parts),
+    //         "load_roster" => self.load_roster(&parts),
+    //         _ => Err("Unknown command.".to_owned()),
+    //     }
+    // }
 }
-
 
 #[derive(Serialize, Deserialize)]
 struct Queue {
@@ -461,6 +465,26 @@ struct Queue {
     ics51: QueueState,
 }
 impl Queue {
+    pub fn new() -> Self {
+        Self {
+            ics53: QueueState::new("53rocks".to_owned(), "53backup.txt".to_owned()),
+            ics51: QueueState::new("51rocks".to_owned(), "51backup.txt".to_owned()),
+        }
+    }
+    pub fn load_backup(&mut self) {
+        self.ics51.load_backup();
+        self.ics53.load_backup();
+    }
+    /// Prints help.
+    ///
+    /// `help`
+    pub fn help(&mut self) -> CommandResult {
+        println!("\"add51 <netid>\" - adds the specified netid to the queue for ics51.");
+        println!("\"view51\" - views the queue for ics51.");
+        println!("\"add53 <netid>\" - adds the specified netid to the queue for ics53.");
+        println!("\"view53\" - views the queue for ics53.");
+        Ok(())
+    }
     pub fn process_command(&mut self, command: &str) -> CommandResult {
         let parts = command
             .split_ascii_whitespace()
@@ -488,7 +512,7 @@ impl Queue {
             "lock53" => self.ics53.lock(),
             "unlock51" => self.ics51.unlock(),
             "unlock53" => self.ics53.unlock(),
-            "help" => self.ics51.help(),
+            "help" => self.help(),
             "quit" => {
                 self.ics51.authenticate()?;
                 self.ics51.save_backup();
@@ -516,7 +540,7 @@ fn main() {
 
     // panic!();
 
-    let mut queue = QueueState::default();
+    let mut queue = Queue::new();
     queue.load_backup();
     let mut buffer = String::new();
     loop {
