@@ -495,7 +495,7 @@ impl Queue {
         }
 
         match parts[0].to_lowercase().as_str() {
-            "checkin51" => self.ics53.checkin(&parts),
+            "checkin51" => self.ics51.checkin(&parts),
             "checkin53" => self.ics53.checkin(&parts),
             "add51" => self.ics51.add(&parts),
             "add53" => self.ics53.add(&parts),
