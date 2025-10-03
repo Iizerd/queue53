@@ -406,7 +406,7 @@ impl QueueState {
                 .map(|s| s.to_owned())
                 .collect::<Vec<String>>();
 
-            if 4 != line_parts.len() {
+            if 3 != line_parts.len() {
                 return Err(format!("Err on line {}:{} ", i, line));
             }
 
@@ -503,7 +503,18 @@ impl Queue {
             "pop53" => self.ics53.pop(),
             "view51" => self.ics51.view(),
             "view53" => self.ics53.view(),
-            "clear" => self.ics53.clear(),
+            "clear" => {
+                print!("Enter password:");
+                std::io::stdout().flush().unwrap();
+                let password = read_password().unwrap();
+                if password != self.ics51.password && password != self.ics53.password {
+                    return Err("Invalid password.".to_owned());
+                }
+                if clearscreen::clear().is_err() {
+                    return Err("Failed to clear screen.".to_owned());
+                }
+                Ok(())
+            }
             "stats51" => self.ics51.stats(&parts),
             "stats53" => self.ics53.stats(&parts),
             "reset51" => self.ics51.reset(),
@@ -514,7 +525,13 @@ impl Queue {
             "unlock53" => self.ics53.unlock(),
             "help" => self.help(),
             "quit" => {
-                self.ics51.authenticate()?;
+                print!("Enter password:");
+                std::io::stdout().flush().unwrap();
+                let password = read_password().unwrap();
+                if password != self.ics51.password && password != self.ics53.password {
+                    return Err("Invalid password.".to_owned());
+                }
+                println!("Exiting...");
                 self.ics51.save_backup();
                 self.ics53.save_backup();
                 exit(0);
